@@ -98,8 +98,8 @@ extracted_text = parse_pdf(uploaded_file) if uploaded_file else ""
 with st.sidebar:
     selected_option = option_menu(
         menu_title="Navigation",
-        options=["How to use this app", "Primary Info", "Insights"],
-        icons=["info", "list-task", "bar-chart"],
+        options=["How to use this app", "Primary Info", "Insights","Clear Responses"],
+        icons=["info", "list-task", "bar-chart","eraser"],
         menu_icon="cast",
         default_index=0
     )
@@ -126,5 +126,17 @@ if api_key and extracted_text:
                     response = llm(api_key, selected_insight, "insights_string", extracted_text, job_role, supporting_insights)
                     st.session_state[selected_insight] = response
                 st.write(st.session_state[selected_insight])
+    elif selected_option=="Clear Responses":
+        col1,col2=st.columns([1,2],border=True)
+        radio_options=col1.radio("Select the stored response to delete data",st.session_state.keys())
+        try:
+            col2.write(st.session_state[radio_options])
+            if col2.button("Delete Data",use-container_width=True,type='primary'):
+                del st.session_state[radio_options]
+                st.rerun()
+        except Exception as e:
+            col2.error(e)
+                
 else:
     st.warning("Please enter an API key and upload a PDF to proceed.")
+    
