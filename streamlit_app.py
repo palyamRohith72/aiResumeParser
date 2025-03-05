@@ -115,7 +115,7 @@ if api_key and extracted_text:
         st.write(st.session_state["response_primary"])
 
     elif selected_option == "Insights":
-        col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns([1, 2],border=True)
 
         with col1:
             selected_insight = st.radio("Select an insight to generate:", insights_string)
@@ -131,7 +131,7 @@ if api_key and extracted_text:
         radio_options=col1.radio("Select the stored response to delete data",st.session_state.keys())
         try:
             col2.write(st.session_state[radio_options])
-            if col2.button("Delete Data",use-container_width=True,type='primary'):
+            if col2.button("Delete Data",use_container_width=True,type='primary'):
                 del st.session_state[radio_options]
                 st.rerun()
         except Exception as e:
