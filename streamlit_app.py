@@ -107,7 +107,8 @@ with st.sidebar:
 # Main Processing
 if api_key and extracted_text:
     job_role = role  # Ensure job_role is set
-    
+    if selected_option=="How to use this app":
+        st.video("https://youtu.be/kq2AANSBInE?si=-zv2jgYm_nhfzV3Q")
     if selected_option == "Primary Info":
         if not st.session_state["run_query_once"]:
             st.session_state["response_primary"] = llm(api_key, query_string, "query_string", extracted_text, job_role, supporting_query)
