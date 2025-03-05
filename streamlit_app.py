@@ -83,10 +83,10 @@ query_string = (
 supporting_query = "Ensure the extracted information is well-structured and complete. Output should be clear and formatted."
 
 supporting_insights = (
-    "### Output Format Guidelines:\n"
-    "**Section One:** Only essential information (e.g., skill sets: Python, JavaScript, Angular, etc.). No paragraphs.\n"
-    "**Section Two:** Insights with structured headings and bullet points.\n"
-    "Ensure output is clean, properly structured, and professional."
+    f"### Output Format Guidelines:\n"
+    "**Section One:** Only essential information realetd to the main content(Query You Are Performing). No paragraphs.\n"
+    "**Section Two:** Insights with structured headings and bullet points. where insights should be drawn according to the main content\n"
+    "Ensure output is clean, properly structured,short,report-oriented and professional."
 )
 
 
