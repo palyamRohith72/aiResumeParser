@@ -29,9 +29,9 @@ if "run_query_once" not in st.session_state:
     st.session_state["run_query_once"] = False
 if "selected_insight" not in st.session_state:
     st.session_state["selected_insight"] = None
-if "insight_responses" not in st.session_state:
-    st.session_state["insight_responses"] = {insight: None for insight in insights_string}
-
+for i in insights_string:
+    if i not in st.session_state:
+        st.session_state[i]=None
 
 def llm(api_key, query, query_type, extracted_text, job_role=None, support_text=None):
     """
@@ -122,9 +122,9 @@ if api_key and extracted_text:
         
         with col2:
             if selected_insight:
-                if st.session_state["insight_responses"][selected_insight] is None:
+                if st.session_state[selected_insight] is None:
                     response = llm(api_key, selected_insight, "insights_string", extracted_text, job_role, supporting_insights)
-                    st.session_state["insight_responses"][selected_insight] = response
-                st.write(st.session_state["insight_responses"][selected_insight])
+                    st.session_state[selected_insight] = response
+                st.write(st.session_state[selected_insight])
 else:
     st.warning("Please enter an API key and upload a PDF to proceed.")
