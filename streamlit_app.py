@@ -19,7 +19,7 @@ insights_string = [
     f"Skills missing for this role - {role}",
     "Projects completed by the user",
     "Project levels - Beginner, Intermediate, Advanced",
-    f"Are projects related to this role - {role}?","
+    f"Are projects related to this role - {role}?",
     "Overall candidate rating based on skills, missing skills, completed projects, and project level",
     "Would you suggest hiring this candidate?"
 ]
