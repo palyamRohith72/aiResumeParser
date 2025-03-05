@@ -43,7 +43,7 @@ def llm(api_key, query, query_type, extracted_text, job_role=None, support_text=
     )
     
     client = Groq(api_key=api_key)
-    user_prompt = f"{query}\nUse this information: {extracted_text}\nAdditional context: {support_text}"
+    user_prompt = f"Just Tell Me {query}\nUsing this information: {extracted_text}\nAdditional context: {support_text}"
     if job_role:
         user_prompt += f"\nJob Role: {job_role}"
     
