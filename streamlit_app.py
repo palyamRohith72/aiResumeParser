@@ -3,16 +3,21 @@ from streamlit_option_menu import option_menu
 from groq import Groq
 import pdfplumber  # Lightweight and fast PDF parser
 
+
+# API Key Input
+api_key = st.sidebar.text_input("Enter API Key", type="password")
+# Role Input
+role = st.sidebar.text_input("Enter Role")
 # Insights options
 insights_string = [
-    "Is Skill Set Matches the current role - {role}",
-    "Skills Possessing By The User",
-    "Skills Missing By The User for This - {role}",
-    "Projects Done By The User",
-    "Projects Level - Beginner, Intermediate, Advanced",
-    "Are Projects Related to This - {role}",
-    "How Would You Rate User For This Role having skills, missing skills, done projects, projects level",
-    "Would you suggest to hire or not"
+    f"Is Skill Set Matches the current role - {role}",
+    f"Skills Possessing By The User",
+    f"Skills Missing By The User for This - {role}",
+    f"Projects Done By The User",
+    f"Projects Level - Beginner, Intermediate, Advanced",
+    f"Are Projects Related to This - {role}",
+    f"How Would You Rate User For This Role having skills, missing skills, done projects, projects level",
+    f"Would you suggest to hire or not"
 ]
 
 # Initialize session state variables (ensures everything runs only once)
@@ -28,7 +33,7 @@ def llm(api_key, string, string_type, extracted_text, job_role=None, supported_s
     Calls the Groq LLM API with the given string and string_type.
     """
     role = "You are a very good resume parser and good information retrieval system" if string_type == "query_string" \
-        else "You are a good analyzer in analyzing candidates' profiles for the current job roles."
+        else "You are a good analyzer in analyzing candidates' profiles for the current job roles Also A summarizer and a good reporter, just report things to hr from the parsed resume strings."
     
     client = Groq(api_key=api_key)
 
@@ -68,7 +73,7 @@ supporting_insights = """
 How to be output format.
 Here is an example that says how would be the output format.
 The output should contain Two Sections
-Section One : Only Necessery Information, for example if qury what are skill sets then in section one only skills should be there like python,javeascript,angular etc
+Section One : Only Necessery Information, for example if qury what are skill sets then in section one only skills should be there like python,javeascript,angular etc(No Paragraphs Shoud Be there)
 Section Two : It contains insights and it can be in the form of points, it should give only deeper insights
 Output should come in neatlu structured with headings, points etc.
 """
@@ -76,11 +81,6 @@ Output should come in neatlu structured with headings, points etc.
 # Streamlit App Structure
 st.sidebar.title("Settings")
 
-# API Key Input
-api_key = st.sidebar.text_input("Enter API Key", type="password")
-
-# Role Input
-role = st.sidebar.text_input("Enter Role")
 
 # File Uploader
 uploaded_file = st.sidebar.file_uploader("Upload a PDF", type=["pdf"])
