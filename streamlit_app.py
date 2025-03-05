@@ -3,89 +3,98 @@ from streamlit_option_menu import option_menu
 from groq import Groq
 import pdfplumber  # Lightweight and fast PDF parser
 
+# Streamlit Sidebar Settings
+st.sidebar.title("Settings")
 
 # API Key Input
 api_key = st.sidebar.text_input("Enter API Key", type="password")
+
 # Role Input
 role = st.sidebar.text_input("Enter Role")
+
 # Insights options
 insights_string = [
-    f"Is Skill Set Matches the current role - {role}",
-    f"Skills Possessing By The User",
-    f"Skills Missing By The User for This - {role}",
-    f"Projects Done By The User",
-    f"Projects Level - Beginner, Intermediate, Advanced",
-    f"Are Projects Related to This - {role}",
-    f"How Would You Rate User For This Role having skills, missing skills, done projects, projects level",
-    f"Would you suggest to hire or not"
+    f"Does the skill set match the current role - {role}?",
+    "Skills possessed by the user",
+    f"Skills missing for this role - {role}",
+    "Projects completed by the user",
+    "Project levels - Beginner, Intermediate, Advanced",
+    f"Are projects related to this role - {role}?","
+    "Overall candidate rating based on skills, missing skills, completed projects, and project level",
+    "Would you suggest hiring this candidate?"
 ]
 
-# Initialize session state variables (ensures everything runs only once)
+# Initialize session state variables
 if "run_query_once" not in st.session_state:
-    st.session_state["run_query_once"] = None
+    st.session_state["run_query_once"] = False
 if "selected_insight" not in st.session_state:
     st.session_state["selected_insight"] = None
 if "insight_responses" not in st.session_state:
-    st.session_state["insight_responses"] = {insight: None for insight in insights_string}  # Store responses
+    st.session_state["insight_responses"] = {insight: None for insight in insights_string}
 
-def llm(api_key, string, string_type, extracted_text, job_role=None, supported_string=None):
+
+def llm(api_key, query, query_type, extracted_text, job_role=None, support_text=None):
     """
-    Calls the Groq LLM API with the given string and string_type.
+    Calls the Groq LLM API with the given query and type.
     """
-    role = "You are a very good resume parser and good information retrieval system" if string_type == "query_string" \
-        else "You are a good analyzer in analyzing candidates' profiles for the current job roles Also A summarizer and a good reporter, just report things to hr from the parsed resume strings."
+    role_description = (
+        "You are an advanced resume parser and an expert in extracting structured information." if query_type == "query_string" 
+        else "You are an expert in analyzing candidates' profiles, summarizing, and reporting insights for HR decisions."
+    )
     
     client = Groq(api_key=api_key)
-
-    user_content = f"{string} Use This Information {extracted_text} and {supported_string}"
+    user_prompt = f"{query}\nUse this information: {extracted_text}\nAdditional context: {support_text}"
     if job_role:
-        user_content = f"{string} for job role: {job_role}, use information to extract: {extracted_text} and {supported_string}"
-
-    chat_completion = client.chat.completions.create(
+        user_prompt += f"\nJob Role: {job_role}"
+    
+    response = client.chat.completions.create(
         messages=[
-            {"role": "system", "content": role},
-            {"role": "user", "content": user_content}
+            {"role": "system", "content": role_description},
+            {"role": "user", "content": user_prompt}
         ],
         model="llama-3.3-70b-versatile",
     )
+    
+    return response.choices[0].message.content
 
-    return chat_completion.choices[0].message.content
 
 def parse_pdf(file):
     """
-    Parses the uploaded PDF and extracts text content.
+    Extracts text content from the uploaded PDF.
     """
     text = ""
-    with pdfplumber.open(file) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+    if file:
+        with pdfplumber.open(file) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
     return text
 
-# Define query strings
-query_string = """You Have to Extract The Following Information From The Given String:
-Name, Phone Number, Email, LinkedIn URL, GitHub URL, Portfolio Link, Other URLs, References with their phone numbers and emails, Work Experience, Designation, Education, Education Achievements, Other Achievements, Address"""
 
-supporting_query = """Extracted Information Should be in a very good formate well structured, extract complete information.Just Extract the complete structured Information Only"""
+# Queries
+query_string = (
+    "Extract the following details in a structured format: "
+    "Name, Phone Number, Email, LinkedIn, GitHub, Portfolio, Other URLs, "
+    "References (Name, Phone, Email), Work Experience, Designation, Education, "
+    "Educational Achievements, Other Achievements, Address."
+)
 
-supporting_insights = """
-How to be output format.
-Here is an example that says how would be the output format.
-The output should contain Two Sections
-Section One : Only Necessery Information, for example if qury what are skill sets then in section one only skills should be there like python,javeascript,angular etc(No Paragraphs Shoud Be there)
-Section Two : It contains insights and it can be in the form of points, it should give only deeper insights
-Output should come in neatlu structured with headings, points etc.
-"""
+supporting_query = "Ensure the extracted information is well-structured and complete. Output should be clear and formatted."
 
-# Streamlit App Structure
-st.sidebar.title("Settings")
+supporting_insights = (
+    "### Output Format Guidelines:\n"
+    "**Section One:** Only essential information (e.g., skill sets: Python, JavaScript, Angular, etc.). No paragraphs.\n"
+    "**Section Two:** Insights with structured headings and bullet points.\n"
+    "Ensure output is clean, properly structured, and professional."
+)
 
 
 # File Uploader
-uploaded_file = st.sidebar.file_uploader("Upload a PDF", type=["pdf"])
+uploaded_file = st.sidebar.file_uploader("Upload a PDF Resume", type=["pdf"])
+extracted_text = parse_pdf(uploaded_file) if uploaded_file else ""
 
-# Option Menu
+# Sidebar Navigation
 with st.sidebar:
     selected_option = option_menu(
         menu_title="Navigation",
@@ -95,37 +104,27 @@ with st.sidebar:
         default_index=0
     )
 
-# Process uploaded file
-extracted_text = parse_pdf(uploaded_file) if uploaded_file else ""
-
-# Processing Based on Selection
-if api_key:
-    job_role = role  # Ensuring job_role is assigned before calling llm()
+# Main Processing
+if api_key and extracted_text:
+    job_role = role  # Ensure job_role is set
     
     if selected_option == "Primary Info":
-        if st.session_state["run_query_once"] is None:
-            st.session_state["response_primery"] = llm(api_key, query_string, "query_string", extracted_text, job_role, supporting_query)
-            st.write(st.session_state["response_primery"])
+        if not st.session_state["run_query_once"]:
+            st.session_state["response_primary"] = llm(api_key, query_string, "query_string", extracted_text, job_role, supporting_query)
             st.session_state["run_query_once"] = True  # Ensures it runs only once
-        else:
-            st.write(st.session_state["response_primery"])
+        st.write(st.session_state["response_primary"])
 
     elif selected_option == "Insights":
-        # Create two columns with ratio 1:2
         col1, col2 = st.columns([1, 2])
 
-        # Column 1: Radio button for insights selection
         with col1:
             selected_insight = st.radio("Select an insight to generate:", insights_string)
-
+        
         with col2:
             if selected_insight:
                 if st.session_state["insight_responses"][selected_insight] is None:
                     response = llm(api_key, selected_insight, "insights_string", extracted_text, job_role, supporting_insights)
-                    st.session_state["insight_responses"][selected_insight] = response  # Store response
-
-                # Display stored response
+                    st.session_state["insight_responses"][selected_insight] = response
                 st.write(st.session_state["insight_responses"][selected_insight])
-
 else:
-    st.warning("Please enter an API key to proceed.")
+    st.warning("Please enter an API key and upload a PDF to proceed.")
