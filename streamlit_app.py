@@ -62,9 +62,16 @@ def parse_pdf(file):
 query_string = """You Have to Extract The Following Information From The Given String:
 Name, Phone Number, Email, LinkedIn URL, GitHub URL, Portfolio Link, Other URLs, References with their phone numbers and emails, Work Experience, Designation, Education, Education Achievements, Other Achievements, Address"""
 
-supporting_query = "Extracted Information Should be in the form of a Python dictionary, so it would be good to pass into Python's eval function and then pass it into the Streamlit write function or markdown function."
+supporting_query = """Extracted Information Should be in a very good formate well structured, extract complete information.Just Extract the complete structured Information Only"""
 
-supporting_insights = "You Have To give the response in the form of a paragraph, listing detailed information for each content."
+supporting_insights = """
+How to be output format.
+Here is an example that says how would be the output format.
+The output should contain Two Sections
+Section One : Only Necessery Information, for example if qury what are skill sets then in section one only skills should be there like python,javeascript,angular etc
+Section Two : It contains insights and it can be in the form of points, it should give only deeper insights
+Output should come in neatlu structured with headings, points etc.
+"""
 
 # Streamlit App Structure
 st.sidebar.title("Settings")
@@ -79,13 +86,14 @@ role = st.sidebar.text_input("Enter Role")
 uploaded_file = st.sidebar.file_uploader("Upload a PDF", type=["pdf"])
 
 # Option Menu
-selected_option = option_menu(
-    menu_title="Navigation",
-    options=["How to use this app", "Primary Info", "Insights"],
-    icons=["info", "list-task", "bar-chart"],
-    menu_icon="cast",
-    default_index=0
-)
+with st.sidebar:
+    selected_option = option_menu(
+        menu_title="Navigation",
+        options=["How to use this app", "Primary Info", "Insights"],
+        icons=["info", "list-task", "bar-chart"],
+        menu_icon="cast",
+        default_index=0
+    )
 
 # Process uploaded file
 extracted_text = parse_pdf(uploaded_file) if uploaded_file else ""
@@ -96,9 +104,11 @@ if api_key:
     
     if selected_option == "Primary Info":
         if st.session_state["run_query_once"] is None:
-            response = llm(api_key, query_string, "query_string", extracted_text, job_role, supporting_query)
-            st.write(response)
+            st.session_state["response_primery"] = llm(api_key, query_string, "query_string", extracted_text, job_role, supporting_query)
+            st.write(st.session_state["response_primery"])
             st.session_state["run_query_once"] = True  # Ensures it runs only once
+        else:
+            st.write(st.session_state["response_primery"])
 
     elif selected_option == "Insights":
         # Create two columns with ratio 1:2
@@ -108,12 +118,6 @@ if api_key:
         with col1:
             selected_insight = st.radio("Select an insight to generate:", insights_string)
 
-        # Process insight selection
-        if st.session_state["selected_insight"] != selected_insight:
-            st.session_state["selected_insight"] = selected_insight  # Store selection
-            st.session_state["insight_responses"][selected_insight] = None  # Reset stored response for new selection
-
-        # Column 2: Display insight result
         with col2:
             if selected_insight:
                 if st.session_state["insight_responses"][selected_insight] is None:
