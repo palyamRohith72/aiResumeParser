@@ -4,10 +4,6 @@ from groq import Groq
 import pdfplumber
 import matplotlib.pyplot as plt
 import numpy as np
-from audio_recorder_streamlit import audio_recorder
-import io
-import base64
-from pydub import AudioSegment
 import tempfile
 import os
 
@@ -41,6 +37,10 @@ if "interview_metrics" not in st.session_state:
     st.session_state["interview_metrics"] = {}
 if "audio_responses" not in st.session_state:
     st.session_state["audio_responses"] = {}
+if "text_responses" not in st.session_state:
+    st.session_state["text_responses"] = {}
+if "interview_questions" not in st.session_state:
+    st.session_state["interview_questions"] = {}
     
 for i in insights_string:
     if i not in st.session_state:
@@ -83,16 +83,21 @@ def parse_pdf(file):
                     text += page_text + "\n"
     return text
 
-def generate_interview_question(api_key, question_num, role, extracted_text):
-    """Generate interview question based on role and resume"""
+def generate_interview_questions(api_key, role, extracted_text, num_questions=10):
+    """Generate a mix of interview questions based on role and resume"""
     prompt = f"""
-    Generate a technical interview question for a {role} position based on the candidate's resume.
-    The question should be challenging but appropriate for the candidate's experience level.
+    Generate {num_questions} interview questions for a {role} position based on the candidate's resume.
+    Include a mix of:
+    - 40% technical questions specific to {role}
+    - 30% behavioral questions
+    - 20% situational questions
+    - 10% general HR questions
+    
+    The questions should be appropriate for the candidate's experience level.
     Here's the resume content:
     {extracted_text}
     
-    The question should be specific to the {role} role and test both technical knowledge and problem-solving ability.
-    Return only the question text, nothing else.
+    Return the questions as a numbered list, nothing else.
     """
     
     client = Groq(api_key=api_key)
@@ -104,7 +109,9 @@ def generate_interview_question(api_key, question_num, role, extracted_text):
         model="llama-3.3-70b-versatile",
     )
     
-    return response.choices[0].message.content
+    # Parse the response into individual questions
+    questions = [q.strip() for q in response.choices[0].message.content.split('\n') if q.strip()]
+    return {f"Q{i+1}": q.split('. ')[1] if '. ' in q else q for i, q in enumerate(questions)}
 
 def evaluate_answer(api_key, question, answer, role):
     """Evaluate the candidate's answer to an interview question"""
@@ -239,61 +246,69 @@ if api_key and extracted_text:
     elif selected_option == "Take Interview":
         st.header("Mock Interview Session")
         
-        # Initialize questions in session state
-        if "interview_questions" not in st.session_state:
+        # Button to regenerate questions and clear progress
+        if st.button("Generate New Questions & Clear Progress"):
             st.session_state["interview_questions"] = {}
-            for i in range(1, 21):
-                st.session_state["interview_questions"][f"Question {i}"] = generate_interview_question(api_key, i, job_role, extracted_text)
+            st.session_state["interview_metrics"] = {}
+            st.session_state["text_responses"] = {}
+            st.rerun()
         
-        # Display radio buttons for questions
-        selected_question = st.radio(
-            "Select a question:",
-            options=[f"Question {i}" for i in range(1, 21)],
-            horizontal=True,
-            key="interview_question_selector"
-        )
+        # Initialize questions if not already present
+        if not st.session_state["interview_questions"]:
+            with st.spinner("Generating interview questions..."):
+                st.session_state["interview_questions"] = generate_interview_questions(api_key, job_role, extracted_text)
         
-        if selected_question:
-            st.subheader("Question:")
-            st.write(st.session_state["interview_questions"][selected_question])
-            
-            # Audio recording for answer
-            st.subheader("Record your answer:")
-            audio_bytes = audio_recorder(
-                text="Click to record",
-                recording_color="#e8b62c",
-                neutral_color="#6aa36f",
-                icon_name="microphone",
-                key=f"recorder_{selected_question}"
-            )
-            
-            if audio_bytes:
-                # Save audio to session state
-                st.session_state["audio_responses"][selected_question] = audio_bytes
+        # Display questions in tabs
+        tabs = st.tabs([f"Q{i+1}" for i in range(len(st.session_state["interview_questions"]))])
+        
+        for i, (q_key, question) in enumerate(st.session_state["interview_questions"].items()):
+            with tabs[i]:
+                st.subheader("Question:")
+                st.write(question)
                 
-                # Convert audio to text (simplified - in real app you'd use speech-to-text API)
-                st.info("Audio response recorded. Click 'Evaluate Answer' to get feedback.")
+                # Text response area
+                st.subheader("Your Answer:")
+                text_response = st.text_area(
+                    "Type your answer here:",
+                    value=st.session_state["text_responses"].get(q_key, ""),
+                    key=f"text_response_{q_key}"
+                )
                 
-                if st.button("Evaluate Answer", key=f"eval_{selected_question}"):
-                    # In a real app, you'd convert audio to text here
-                    # For demo, we'll simulate it
-                    simulated_transcript = f"Simulated transcript for {selected_question}. In a real app, this would be converted from audio using speech-to-text."
-                    
-                    evaluation = evaluate_answer(
-                        api_key,
-                        st.session_state["interview_questions"][selected_question],
-                        simulated_transcript,
-                        job_role
-                    )
-                    
-                    # Extract score from evaluation (this is simplified)
-                    if "Score:" in evaluation:
-                        score_line = evaluation.split("Score:")[1].split("\n")[0].strip()
-                        score = int(score_line.split("/")[0])
-                        st.session_state["interview_metrics"][selected_question] = score
-                    
-                    st.subheader("Evaluation:")
-                    st.write(evaluation)
+                # Save text response
+                if text_response:
+                    st.session_state["text_responses"][q_key] = text_response
+                
+                # Audio response (optional)
+                st.subheader("Or record your answer:")
+                audio_bytes = st.audio_input(
+                    f"Record answer for {q_key}",
+                    key=f"audio_{q_key}"
+                )
+                
+                if audio_bytes:
+                    st.session_state["audio_responses"][q_key] = audio_bytes
+                    st.success("Audio response recorded!")
+                
+                # Evaluate button
+                if st.button(f"Evaluate {q_key}", key=f"eval_{q_key}"):
+                    if q_key in st.session_state["text_responses"] and st.session_state["text_responses"][q_key]:
+                        evaluation = evaluate_answer(
+                            api_key,
+                            question,
+                            st.session_state["text_responses"][q_key],
+                            job_role
+                        )
+                        
+                        # Extract score from evaluation
+                        if "Score:" in evaluation:
+                            score_line = evaluation.split("Score:")[1].split("\n")[0].strip()
+                            score = int(score_line.split("/")[0])
+                            st.session_state["interview_metrics"][q_key] = score
+                        
+                        st.subheader("Evaluation:")
+                        st.write(evaluation)
+                    else:
+                        st.warning("Please provide a text answer before evaluating.")
         
         # Overall evaluation dashboard
         if st.button("Evaluate Total Performance"):
@@ -302,7 +317,7 @@ if api_key and extracted_text:
             else:
                 # Calculate metrics
                 attempted = len(st.session_state["interview_metrics"])
-                not_attempted = 20 - attempted
+                not_attempted = len(st.session_state["interview_questions"]) - attempted
                 avg_score = sum(st.session_state["interview_metrics"].values()) / attempted if attempted else 0
                 
                 # Create dashboard
@@ -323,19 +338,23 @@ if api_key and extracted_text:
                     questions = list(st.session_state["interview_metrics"].keys())
                     scores = list(st.session_state["interview_metrics"].values())
                     ax.bar(questions, scores)
-                    plt.xticks(rotation=90)
+                    plt.xticks(rotation=45)
                     ax.set_ylim(0, 100)
+                    ax.set_ylabel("Score")
                     st.pyplot(fig)
                 
                 # Overall metrics
                 st.subheader("Overall Metrics")
-                st.metric("Average Score", f"{avg_score:.1f}/100")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Questions Attempted", f"{attempted}/{len(st.session_state['interview_questions'])}")
+                with col2:
+                    st.metric("Average Score", f"{avg_score:.1f}/100")
+                with col3:
+                    rating = avg_score / 10
+                    st.metric("Overall Rating", f"{rating:.1f}/10")
                 
-                # Rating out of 10
-                rating = avg_score / 10
-                st.metric("Overall Rating", f"{rating:.1f}/10")
-                
-                # Package estimation (simplified)
+                # Package estimation
                 package_base = {
                     "Entry Level": "4-6 LPA",
                     "Mid Level": "8-12 LPA",
