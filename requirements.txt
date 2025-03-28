@@ -1,4 +1,8 @@
 streamlit
-streamlit-option-menu
 groq
 pdfplumber
+matplotlib
+numpy
+audio-recorder-streamlit
+pydub
+python-dotenv
