@@ -6,3 +6,4 @@ numpy
 audio-recorder-streamlit
 pydub
 python-dotenv
+streamlit-option-menu
